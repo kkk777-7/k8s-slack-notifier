@@ -58,9 +58,7 @@ vet: ## Run go vet against code.
 .PHONY: start
 start: ## Start local Kubernetes cluster
 	ctlptl apply -f ./cluster.yaml
-	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
-	kubectl -n cert-manager wait --for=condition=available --timeout=180s --all deployments
-
+	
 .PHONY: stop
 stop: ## Stop local Kubernetes cluster
 	ctlptl delete -f ./cluster.yaml
