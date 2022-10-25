@@ -18,9 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -61,11 +64,20 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	// Deleted Pod Case
 	if !pod.ObjectMeta.DeletionTimestamp.IsZero() {
+		message := fmt.Sprintf("Pod DELETE [%v] NameSpace: %s, Name: %s", pod.DeletionTimestamp.In(jst), pod.Namespace, pod.Name)
+		fmt.Println(message)
 		logger.Info("Delete!!! Pod", "podName", pod.Name)
 	}
 
+	// Created Pod Case
+	if pod.Status.Phase == "Running" && IsCreatePod(pod.ObjectMeta.CreationTimestamp) {
+		message := fmt.Sprintf("Pod CREATE [%v] NameSpace: %s, Name: %s", pod.CreationTimestamp.In(jst), pod.Namespace, pod.Name)
+		fmt.Println(message)
+		logger.Info("Create!!! Pod", "podName", pod.Name)
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -74,4 +86,11 @@ func (r *DeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)
+}
+
+// Calculate the difference between the time the pod was created and the current time
+// Positive if less than 5 seconds
+func IsCreatePod(t v1.Time) bool {
+	now := time.Now()
+	return now.Sub(t.Time) < 5*time.Second
 }
