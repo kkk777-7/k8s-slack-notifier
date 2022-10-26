@@ -19,11 +19,6 @@ def binary():
 local_resource('make manifests', manifests(), deps=["api", "controllers", "hooks"], ignore=['*/*/zz_generated.deepcopy.go'])
 local_resource('make generate', generate(), deps=["api", "hooks"], ignore=['*/*/zz_generated.deepcopy.go'])
 
-# # Deploy CRD
-# local_resource(
-#     'CRD', manifests() + 'kustomize build config/crd | kubectl apply -f -', deps=["api"],
-#     ignore=['*/*/zz_generated.deepcopy.go'])
-
 # Deploy manager
 watch_file('./config/')
 k8s_yaml(kustomize('./config/dev'))
@@ -41,7 +36,3 @@ docker_build_with_restart(
         sync('./bin/manager', '/manager'),
     ]
 )
-
-# local_resource(
-#     'Sample', 'kubectl apply -f ./config/samples/view_v1_markdownview.yaml',
-#     deps=["./config/samples/view_v1_markdownview.yaml"])

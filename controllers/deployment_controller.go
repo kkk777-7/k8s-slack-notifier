@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kkk777-7/k8s-slack-notifier/pkg/notify"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +37,7 @@ type DeploymentReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+	Notifier notify.Notifier
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;
@@ -53,6 +55,15 @@ type DeploymentReconciler struct {
 func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := crlog.FromContext(ctx)
 
+	// Setup Event Notify
+	if r.Notifier == nil {
+		n, err := notify.NewNotifier("slack", "/etc/notifier/slack.yaml")
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		r.Notifier = n
+	}
+
 	// Get Pod Information
 	var pod corev1.Pod
 	err := r.Get(ctx, req.NamespacedName, &pod)
@@ -67,16 +78,24 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
 	// Deleted Pod Case
 	if !pod.ObjectMeta.DeletionTimestamp.IsZero() {
-		message := fmt.Sprintf("Pod DELETE [%v] NameSpace: %s, Name: %s", pod.DeletionTimestamp.In(jst), pod.Namespace, pod.Name)
-		fmt.Println(message)
+		title := "Pod DELETE"
+		message := fmt.Sprintf("[%v] NameSpace: %s, Name: %s", pod.DeletionTimestamp.In(jst), pod.Namespace, pod.Name)
 		logger.Info("Delete!!! Pod", "podName", pod.Name)
+		err := r.Notifier.SendFailEvent(title, message)
+		if err != nil {
+			logger.Error(err, "unable to send fail event")
+		}
 	}
 
 	// Created Pod Case
 	if pod.Status.Phase == "Running" && IsCreatePod(pod.ObjectMeta.CreationTimestamp) {
-		message := fmt.Sprintf("Pod CREATE [%v] NameSpace: %s, Name: %s", pod.CreationTimestamp.In(jst), pod.Namespace, pod.Name)
-		fmt.Println(message)
+		title := "Pod CREATE"
+		message := fmt.Sprintf("[%v] NameSpace: %s, Name: %s", pod.CreationTimestamp.In(jst), pod.Namespace, pod.Name)
 		logger.Info("Create!!! Pod", "podName", pod.Name)
+		err := r.Notifier.SendSuccessEvent(title, message)
+		if err != nil {
+			logger.Error(err, "unable to send success event")
+		}
 	}
 	return ctrl.Result{}, nil
 }
