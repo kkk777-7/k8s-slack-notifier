@@ -76,18 +76,18 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	// Deleted Pod Case
+	// Deleting Pod
 	if !pod.ObjectMeta.DeletionTimestamp.IsZero() {
-		title := "Pod DELETE"
+		title := "Pod DELETING"
 		message := fmt.Sprintf("[%v] NameSpace: %s, Name: %s", pod.DeletionTimestamp.In(jst), pod.Namespace, pod.Name)
-		logger.Info("Delete!!! Pod", "podName", pod.Name)
+		logger.Info("Deleting!!! Pod", "podName", pod.Name)
 		err := r.Notifier.SendFailEvent(title, message)
 		if err != nil {
 			logger.Error(err, "unable to send fail event")
 		}
 	}
 
-	// Created Pod Case
+	// Created Pod
 	if pod.Status.Phase == "Running" && IsCreatePod(pod.ObjectMeta.CreationTimestamp) {
 		title := "Pod CREATE"
 		message := fmt.Sprintf("[%v] NameSpace: %s, Name: %s", pod.CreationTimestamp.In(jst), pod.Namespace, pod.Name)
