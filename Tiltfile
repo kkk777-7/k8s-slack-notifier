@@ -15,17 +15,16 @@ def generate():
 def binary():
     return 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager main.go'
 
+
 # Generate manifests and go files
-local_resource('make manifests', manifests(), deps=["api", "controllers", "hooks"], ignore=['*/*/zz_generated.deepcopy.go'])
-local_resource('make generate', generate(), deps=["api", "hooks"], ignore=['*/*/zz_generated.deepcopy.go'])
+local_resource('make manifests', manifests(), deps=["controllers"])
 
 # Deploy manager
 watch_file('./config/')
 k8s_yaml(kustomize('./config/dev'))
 
 local_resource(
-    'Watch & Compile', generate() + binary(), deps=['controllers', 'api', 'main.go'],
-    ignore=['*/*/zz_generated.deepcopy.go'])
+    'Watch & Compile', generate() + binary(), deps=['controllers', 'main.go'])
 
 docker_build_with_restart(
     'controller:latest', '.',
